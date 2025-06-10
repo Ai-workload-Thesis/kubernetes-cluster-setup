@@ -1,0 +1,32 @@
+# roles/networking/tasks/main.yml
+---
+- name: Install MetalLB
+  command: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user | default(ansible_env.USER) }}/.kube/config"
+
+- name: Wait for MetalLB controller to be ready
+  command: kubectl wait --namespace metallb-system --for=condition=ready pod --selector=app=metallb --timeout=90s
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user | default(ansible_env.USER) }}/.kube/config"
+
+- name: Create MetalLB IP pool configuration
+  template:
+    src: metallb-config.yaml.j2
+    dest: /tmp/metallb-config.yaml
+
+- name: Apply MetalLB configuration
+  command: kubectl apply -f /tmp/metallb-config.yaml
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user | default(ansible_env.USER) }}/.kube/config"
+
+- name: Configure UFW for required ports
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "{{ harbor_http_port }}"
+    - "{{ harbor_https_port }}"
+    - "{{ webapp_port | int + 25000 }}"
+  when: ansible_os_family == "Debian"

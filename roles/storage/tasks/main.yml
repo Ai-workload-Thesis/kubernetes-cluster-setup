@@ -1,0 +1,27 @@
+# roles/storage/tasks/main.yml
+---
+- name: Create storage directory
+  file:
+    path: "{{ storage_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Create StorageClass manifest
+  template:
+    src: storageclass.yaml.j2
+    dest: /tmp/storageclass.yaml
+
+- name: Apply StorageClass
+  command: kubectl apply -f /tmp/storageclass.yaml
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user | default(ansible_env.USER) }}/.kube/config"
+
+- name: Create PersistentVolume manifest
+  template:
+    src: persistent-volume.yaml.j2
+    dest: /tmp/persistent-volume.yaml
+
+- name: Apply PersistentVolume
+  command: kubectl apply -f /tmp/persistent-volume.yaml
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user | default(ansible_env.USER) }}/.kube/config"

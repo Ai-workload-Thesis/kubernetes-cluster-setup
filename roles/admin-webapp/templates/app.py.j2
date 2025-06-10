@@ -1,0 +1,124 @@
+# roles/admin-webapp/templates/app.py.j2
+from flask import Flask, render_template_string, jsonify
+import subprocess
+import json
+
+app = Flask(__name__)
+app.secret_key = '{{ webapp_secret_key }}'
+
+TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kubernetes Admin Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .btn { padding: 10px 15px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .btn:hover { background: #005a87; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Kubernetes Admin Dashboard</h1>
+        
+        <div class="section">
+            <h2>Cluster Information</h2>
+            <button class="btn" onclick="loadClusterInfo()">Refresh Cluster Info</button>
+            <pre id="cluster-info">Click refresh to load cluster information</pre>
+        </div>
+        
+        <div class="section">
+            <h2>Pods</h2>
+            <button class="btn" onclick="loadPods()">Refresh Pods</button>
+            <pre id="pods-info">Click refresh to load pods information</pre>
+        </div>
+        
+        <div class="section">
+            <h2>Services</h2>
+            <button class="btn" onclick="loadServices()">Refresh Services</button>
+            <pre id="services-info">Click refresh to load services information</pre>
+        </div>
+        
+        <div class="section">
+            <h2>Storage</h2>
+            <button class="btn" onclick="loadStorage()">Refresh Storage</button>
+            <pre id="storage-info">Click refresh to load storage information</pre>
+        </div>
+    </div>
+    
+    <script>
+        function loadClusterInfo() {
+            fetch('/api/cluster-info')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('cluster-info').textContent = data.output;
+                });
+        }
+        
+        function loadPods() {
+            fetch('/api/pods')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('pods-info').textContent = data.output;
+                });
+        }
+        
+        function loadServices() {
+            fetch('/api/services')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('services-info').textContent = data.output;
+                });
+        }
+        
+        function loadStorage() {
+            fetch('/api/storage')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('storage-info').textContent = data.output;
+                });
+        }
+    </script>
+</body>
+</html>
+'''
+
+def run_kubectl(command):
+    try:
+        result = subprocess.run(f'kubectl {command}', shell=True, capture_output=True, text=True)
+        return result.stdout if result.returncode == 0 else result.stderr
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@app.route('/')
+def index():
+    return render_template_string(TEMPLATE)
+
+@app.route('/api/cluster-info')
+def cluster_info():
+    output = run_kubectl('cluster-info')
+    return jsonify({'output': output})
+
+@app.route('/api/pods')
+def pods():
+    output = run_kubectl('get pods --all-namespaces -o wide')
+    return jsonify({'output': output})
+
+@app.route('/api/services')
+def services():
+    output = run_kubectl('get services --all-namespaces -o wide')
+    return jsonify({'output': output})
+
+@app.route('/api/storage')
+def storage():
+    pv_output = run_kubectl('get pv')
+    pvc_output = run_kubectl('get pvc --all-namespaces')
+    sc_output = run_kubectl('get storageclass')
+    output = f"Persistent Volumes:\n{pv_output}\n\nPersistent Volume Claims:\n{pvc_output}\n\nStorage Classes:\n{sc_output}"
+    return jsonify({'output': output})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,0 +1,43 @@
+# roles/harbor/tasks/main.yml
+---
+- name: Create Harbor directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ harbor_data_dir }}"
+    - "{{ harbor_config_dir }}"
+
+- name: Download Harbor installer
+  get_url:
+    url: "https://github.com/goharbor/harbor/releases/download/{{ harbor_version }}/harbor-online-installer-{{ harbor_version }}.tgz"
+    dest: "/tmp/harbor-installer.tgz"
+
+- name: Extract Harbor installer
+  unarchive:
+    src: "/tmp/harbor-installer.tgz"
+    dest: "/opt"
+    remote_src: yes
+    creates: "/opt/harbor"
+
+- name: Generate Harbor configuration
+  template:
+    src: harbor.yml.j2
+    dest: /opt/harbor/harbor.yml
+
+- name: Prepare Harbor
+  command: ./prepare
+  args:
+    chdir: /opt/harbor
+
+- name: Install Harbor
+  command: ./install.sh
+  args:
+    chdir: /opt/harbor
+    creates: /opt/harbor/docker-compose.yml
+
+- name: Start Harbor services
+  command: docker-compose up -d
+  args:
+    chdir: /opt/harbor

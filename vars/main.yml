@@ -1,0 +1,29 @@
+# vars/main.yml
+---
+# Kubernetes Configuration
+k8s_version: "1.28"
+pod_network_cidr: "10.244.0.0/16"
+service_cidr: "10.96.0.0/12"
+
+# Harbor Configuration
+harbor_version: "v2.9.0"
+harbor_data_dir: "/opt/harbor/data"
+harbor_config_dir: "/opt/harbor/config"
+harbor_https_port: 8443
+harbor_http_port: 8080
+harbor_hostname: "{{ ansible_default_ipv4.address }}"
+
+# Admin Webapp Configuration
+webapp_port: 5000
+webapp_image: "admin-webapp:latest"
+webapp_namespace: "admin-system"
+
+# Storage Configuration
+storage_class_name: "local-storage"
+storage_path: "/opt/k8s-storage"
+
+# Network Configuration
+metallb_ip_range: "{{ ansible_default_ipv4.address }}/32"
+
+# Docker Configuration
+docker_version: "24.0.*"

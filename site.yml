@@ -1,0 +1,33 @@
+---
+- name: Deploy Single Node Kubernetes with Harbor and Admin Webapp
+  hosts: localhost
+  connection: local
+  become: yes
+  vars_files:
+    - vars/main.yml
+    - vars/secrets.yml
+  
+  pre_tasks:
+    - name: Update system packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        autoremove: yes
+      when: ansible_os_family == "Debian"
+
+  roles:
+    - docker
+    - kubernetes
+    - storage
+    - harbor
+    - admin-webapp
+    - networking
+
+  post_tasks:
+    - name: Display access information
+      debug:
+        msg:
+          - "Kubernetes cluster is ready"
+          - "Harbor registry: https://{{ ansible_default_ipv4.address }}:{{ harbor_https_port }}"
+          - "Admin webapp: http://{{ ansible_default_ipv4.address }}:{{ webapp_port }}"
+          - "Harbor credentials: admin/admin"

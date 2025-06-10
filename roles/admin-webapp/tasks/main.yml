@@ -1,0 +1,53 @@
+# roles/admin-webapp/tasks/main.yml
+---
+- name: Create webapp namespace
+  command: kubectl create namespace {{ webapp_namespace }}
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user | default(ansible_env.USER) }}/.kube/config"
+  ignore_errors: yes
+
+- name: Create webapp directory
+  file:
+    path: /opt/admin-webapp
+    state: directory
+    mode: '0755'
+
+- name: Create Flask application
+  template:
+    src: app.py.j2
+    dest: /opt/admin-webapp/app.py
+
+- name: Create requirements.txt
+  template:
+    src: requirements.txt.j2
+    dest: /opt/admin-webapp/requirements.txt
+
+- name: Create Dockerfile
+  template:
+    src: Dockerfile.j2
+    dest: /opt/admin-webapp/Dockerfile
+
+- name: Build webapp Docker image
+  command: docker build -t {{ webapp_image }} .
+  args:
+    chdir: /opt/admin-webapp
+
+- name: Create webapp deployment manifest
+  template:
+    src: webapp-deployment.yaml.j2
+    dest: /tmp/webapp-deployment.yaml
+
+- name: Apply webapp deployment
+  command: kubectl apply -f /tmp/webapp-deployment.yaml
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user | default(ansible_env.USER) }}/.kube/config"
+
+- name: Create webapp service manifest
+  template:
+    src: webapp-service.yaml.j2
+    dest: /tmp/webapp-service.yaml
+
+- name: Apply webapp service
+  command: kubectl apply -f /tmp/webapp-service.yaml
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user | default(ansible_env.USER) }}/.kube/config"
