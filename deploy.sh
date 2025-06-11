@@ -9,8 +9,12 @@ echo "Starting Kubernetes cluster deployment..."
 if ! command -v ansible-playbook &> /dev/null; then
     echo "Installing Ansible..."
     apt update
-    apt install -y ansible python3-pip
-    pip3 install kubernetes
+    apt install -y ansible python3-pip python3-kubernetes python3-venv
+    # Use system packages instead of pip for kubernetes library
+    if ! python3 -c "import kubernetes" 2>/dev/null; then
+        echo "Installing kubernetes library via pip with --break-system-packages..."
+        pip3 install kubernetes --break-system-packages
+    fi
 fi
 
 # Run the playbook
