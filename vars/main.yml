@@ -24,6 +24,3 @@ storage_path: "/opt/k8s-storage"
 
 # Network Configuration
 metallb_ip_range: "{{ ansible_default_ipv4.address }}/32"
-
-# Docker Configuration
-docker_version: "24.0.*"
