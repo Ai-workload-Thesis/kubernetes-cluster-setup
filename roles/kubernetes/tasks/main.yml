@@ -1,14 +1,32 @@
 # roles/kubernetes/tasks/main.yml
 ---
-- name: Add Kubernetes GPG key
-  apt_key:
-    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+- name: Install required packages for Kubernetes
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gpg
     state: present
+    update_cache: yes
 
-- name: Add Kubernetes repository
+- name: Create keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Add Kubernetes GPG key (new method)
+  shell: |
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes repository (new method)
   apt_repository:
-    repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
     state: present
+    filename: kubernetes
 
 - name: Install Kubernetes components
   apt:
@@ -28,6 +46,11 @@
     - kubeadm
     - kubectl
 
+- name: Check if cluster is already initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: k8s_admin_conf
+
 - name: Initialize Kubernetes cluster
   command: >
     kubeadm init
@@ -35,8 +58,7 @@
     --service-cidr={{ service_cidr }}
     --apiserver-advertise-address={{ ansible_default_ipv4.address }}
   register: kubeadm_init
-  changed_when: kubeadm_init.rc == 0
-  failed_when: kubeadm_init.rc != 0 and "already exists" not in kubeadm_init.stderr
+  when: not k8s_admin_conf.stat.exists
 
 - name: Create .kube directory
   file:
